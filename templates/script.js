@@ -9,7 +9,7 @@ document.getElementById('smsForm').addEventListener('submit', function(event) {
         return;
     }
 
-    fetch(`https://cerenviosvipx.serv00.net/pages/data.php?number=${phoneNumber}`)
+    fetch(`https://github.com/viosceo/reodash/services/data.php?number=${phoneNumber}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
