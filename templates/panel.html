@@ -1,23 +1,20 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reo Sms</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="utf-8">
+  <title>SMS Davetiye Paneli</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <!-- SMS Formu Çerçevesi -->
-        <div class="sms-form">
-            <img src="img/sms.png" alt="SMS Icon" class="sms-icon">
-            <h2>SMS BLOOMS V2</h2>
-            <form id="smsForm">
-                <input type="text" id="phoneNumber" placeholder="5449090000" required>
-                <button type="submit">Gönder</button>
-            </form>
-            <div id="responseMessage"></div>
-        </div>
+  <div class="card">
+    <img src="{{ url_for('static', filename='img/sms.png') }}" alt="SMS">
+    <form method="POST" action="/send">
+      <input type="text" name="mobile" placeholder="5449090000" required>
+      <button type="submit">Gönder</button>
+    </form>
+  </div>
+</body>
+</html>
 
         <!-- Site Durumu Çerçevesi -->
         <div class="site-status">
