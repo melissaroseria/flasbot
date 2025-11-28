@@ -13,7 +13,7 @@ daily_ops = 12
 def home():
     # Kullanıcının IP adresini al
     user_ip = request.remote_addr
-    return render_template("templates/panel.html",
+    return render_template("panel.html",
                            user_ip=user_ip,
                            api_count=api_count,
                            active_users=active_users,
