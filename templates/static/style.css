@@ -1,0 +1,82 @@
+/* Genel font ve yapı */
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #000;
+  color: #fff;
+  margin: 0;
+  padding: 0;
+}
+
+/* Kart yapısı (login/register) */
+.card {
+  background-color: #1c1c1c;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* Form elemanları */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="file"],
+button {
+  border-radius: 8px;
+  border: none;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #111;
+  color: #fff;
+}
+
+input::placeholder {
+  color: #888;
+}
+
+button {
+  background-color: #007bff;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+/* Terminal vibe */
+.terminal {
+  font-family: 'Courier New', monospace;
+  background-color: #000;
+  color: #0f0;
+  border: 1px solid #333;
+  padding: 10px;
+  border-radius: 8px;
+  height: 300px;
+  overflow-y: auto;
+}
+
+/* Sidebar linkler */
+.list-group-item {
+  background-color: #1c1c1c;
+  color: #fff;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover {
+  background-color: #333;
+}
+
+/* Mobil uyum */
+@media (max-width: 768px) {
+  .card {
+    width: 90%;
+    margin: auto;
+  }
+
+  .terminal {
+    height: 200px;
+  }
+
+  .list-group-item {
+    font-size: 14px;
+  }
+}
