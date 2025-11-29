@@ -35,6 +35,10 @@ def do_login():
             data = f.read()
             if f"password: {password}" in data:
                 session['username'] = username
+                # Kullanıcı dizinini oluştur
+                user_project_dir = os.path.join(PROJECTS_DIR, username)
+                os.makedirs(user_project_dir, exist_ok=True)
+                
                 flash("Başarıyla giriş yapıldı!", "success")
                 return redirect(url_for('panel'))
     
@@ -59,6 +63,10 @@ def do_register():
     with open(user_file, "w") as f:
         f.write(f"email: {email}\nusername: {username}\npassword: {password}")
     
+    # Kullanıcı için proje dizinini oluştur
+    user_project_dir = os.path.join(PROJECTS_DIR, username)
+    os.makedirs(user_project_dir, exist_ok=True)
+    
     flash("Kayıt başarılı! Giriş yapabilirsiniz.", "success")
     return redirect(url_for('login'))
 
@@ -68,39 +76,44 @@ def logout():
     flash("Çıkış yapıldı!", "info")
     return redirect(url_for('login'))
 
-# Panel ve proje yönetimi
+# Panel ana sayfa
 @app.route('/panel')
 def panel():
     username = session.get('username')
     user_projects_dir = os.path.join(PROJECTS_DIR, username)
     
+    # Projeleri listele
     projects = []
     if os.path.exists(user_projects_dir):
         for project in os.listdir(user_projects_dir):
             project_path = os.path.join(user_projects_dir, project)
             if os.path.isdir(project_path):
-                # Proje bilgilerini topla
-                python_files = [f for f in os.listdir(project_path) if f.endswith('.py')]
-                created_time = os.path.getctime(project_path)
+                # Proje dosyalarını listele
+                files = []
+                for file in os.listdir(project_path):
+                    if file.endswith('.py'):
+                        files.append(file)
                 
+                created_time = os.path.getctime(project_path)
                 projects.append({
                     'name': project,
-                    'created': datetime.fromtimestamp(created_time).strftime('%d.%m.%Y %H:%M'),
-                    'python_files': python_files,
-                    'file_count': len(python_files),
-                    'is_running': is_process_running(username, project)
+                    'files': files,
+                    'created': datetime.fromtimestamp(created_time).strftime('%d.%m.%Y %H:%M')
                 })
     
     return render_template('panel.html', 
                          username=username, 
-                         projects=projects,
-                         active_tab=request.args.get('tab', 'projects'))
+                         projects=projects)
 
 # Python dosyası yükleme
 @app.route('/upload_python', methods=['POST'])
 def upload_python():
     username = session.get('username')
     project_name = request.form.get('project_name')
+    
+    if not project_name:
+        flash("Proje adı gerekli!", "error")
+        return redirect(url_for('panel'))
     
     if 'python_files' not in request.files:
         flash("Dosya seçilmedi!", "error")
@@ -114,7 +127,7 @@ def upload_python():
     
     uploaded_files = []
     for file in files:
-        if file.filename.endswith('.py'):
+        if file and file.filename.endswith('.py'):
             file_path = os.path.join(user_project_dir, file.filename)
             file.save(file_path)
             uploaded_files.append(file.filename)
@@ -126,21 +139,39 @@ def upload_python():
     
     return redirect(url_for('panel'))
 
+# Dosya içeriğini okuma
+@app.route('/get_file_content/<project_name>/<filename>')
+def get_file_content(project_name, filename):
+    username = session.get('username')
+    file_path = os.path.join(PROJECTS_DIR, username, project_name, filename)
+    
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify({'success': True, 'content': content})
+    else:
+        return jsonify({'success': False, 'error': 'Dosya bulunamadı'})
+
+# Dosya kaydetme
+@app.route('/save_file/<project_name>/<filename>', methods=['POST'])
+def save_file(project_name, filename):
+    username = session.get('username')
+    file_path = os.path.join(PROJECTS_DIR, username, project_name, filename)
+    
+    content = request.json.get('content', '')
+    
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 # Proje çalıştırma
-processes = {}
-
-def is_process_running(username, project_name):
-    return processes.get(f"{username}_{project_name}") is not None
-
 @app.route('/run_project/<project_name>')
 def run_project(project_name):
     username = session.get('username')
-    project_key = f"{username}_{project_name}"
     user_project_dir = os.path.join(PROJECTS_DIR, username, project_name)
-    
-    if project_key in processes:
-        flash("❌ Proje zaten çalışıyor!", "error")
-        return redirect(url_for('panel'))
     
     # Python dosyalarını bul
     python_files = [f for f in os.listdir(user_project_dir) if f.endswith('.py')]
@@ -149,7 +180,7 @@ def run_project(project_name):
         flash("❌ Çalıştırılacak Python dosyası bulunamadı!", "error")
         return redirect(url_for('panel'))
     
-    # Ana dosyayı bul (öncelik: main.py, app.py, bot.py)
+    # Ana dosyayı bul
     main_file = None
     for preferred in ['main.py', 'app.py', 'bot.py', 'run.py']:
         if preferred in python_files:
@@ -157,7 +188,7 @@ def run_project(project_name):
             break
     
     if not main_file:
-        main_file = python_files[0]  # İlk Python dosyasını kullan
+        main_file = python_files[0]
     
     try:
         # Prosesi başlat
@@ -169,26 +200,15 @@ def run_project(project_name):
             text=True
         )
         
-        processes[project_key] = {
-            'process': process,
-            'start_time': datetime.now(),
-            'log': []
-        }
+        # Basit çıktı yakalama
+        def get_output():
+            output, error = process.communicate()
+            if output:
+                flash(f"✅ {project_name} çıktısı: {output}", "success")
+            if error:
+                flash(f"⚠️ {project_name} hatası: {error}", "warning")
         
-        # Logları topla (thread ile)
-        def collect_logs():
-            while process.poll() is None:
-                output = process.stdout.readline()
-                if output:
-                    processes[project_key]['log'].append({
-                        'time': datetime.now().strftime('%H:%M:%S'),
-                        'message': output.strip()
-                    })
-                time.sleep(0.1)
-        
-        thread = threading.Thread(target=collect_logs)
-        thread.daemon = True
-        thread.start()
+        threading.Thread(target=get_output).start()
         
         flash(f"✅ {project_name} başlatıldı!", "success")
         
@@ -197,45 +217,12 @@ def run_project(project_name):
     
     return redirect(url_for('panel'))
 
-# Proje durdurma
-@app.route('/stop_project/<project_name>')
-def stop_project(project_name):
-    username = session.get('username')
-    project_key = f"{username}_{project_name}"
-    
-    if project_key in processes:
-        processes[project_key]['process'].terminate()
-        processes.pop(project_key)
-        flash(f"✅ {project_name} durduruldu!", "success")
-    else:
-        flash("❌ Proje zaten çalışmıyor!", "error")
-    
-    return redirect(url_for('panel'))
-
-# Logları getir
-@app.route('/get_logs/<project_name>')
-def get_logs(project_name):
-    username = session.get('username')
-    project_key = f"{username}_{project_name}"
-    
-    if project_key in processes:
-        return jsonify({'logs': processes[project_key]['log']})
-    else:
-        return jsonify({'logs': []})
-
 # Proje silme
 @app.route('/delete_project/<project_name>')
 def delete_project(project_name):
     username = session.get('username')
-    project_key = f"{username}_{project_name}"
     user_project_dir = os.path.join(PROJECTS_DIR, username, project_name)
     
-    # Çalışıyorsa durdur
-    if project_key in processes:
-        processes[project_key]['process'].terminate()
-        processes.pop(project_key)
-    
-    # Dizini sil
     if os.path.exists(user_project_dir):
         shutil.rmtree(user_project_dir)
         flash("✅ Proje silindi!", "success")
