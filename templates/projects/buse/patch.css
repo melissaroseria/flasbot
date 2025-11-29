@@ -1,0 +1,91 @@
+/* Terminal Stilleri */
+.terminal {
+    background: #1a1a1a;
+    color: #00ff88;
+    font-family: 'Courier New', monospace;
+    border-radius: 10px;
+    height: 250px;
+    overflow-y: auto;
+    padding: 15px;
+    border: 1px solid #00ff88;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    padding: 2px 0;
+    border-bottom: 1px solid #333;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.log-time {
+    color: #888;
+    font-size: 10px;
+    margin-right: 8px;
+}
+
+.log-message {
+    color: inherit;
+}
+
+.log-info { color: #00aaff; }
+.log-success { color: #00ff88; }
+.log-warning { color: #ffaa00; }
+.log-error { color: #ff4444; }
+.log-debug { color: #aa00ff; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sistem İstatistikleri */
+.system-stats {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.progress {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    height: 20px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #00ff88, #00cc6a);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+/* Dosya Yönetimi */
+.file-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.file-action-btn {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 5px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.file-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .terminal {
+        height: 200px;
+        font-size: 11px;
+    }
+}
