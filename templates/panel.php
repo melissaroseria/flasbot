@@ -70,7 +70,6 @@
     
     .project-card {
       transition: all 0.3s;
-      cursor: pointer;
     }
     
     .project-card:hover {
@@ -78,16 +77,53 @@
       border-color: var(--primary);
     }
     
-    .alert-success {
-      background: rgba(0, 255, 136, 0.1);
-      border: 1px solid var(--primary);
+    .status-running {
       color: var(--primary);
+      animation: pulse 2s infinite;
     }
     
-    .alert-error {
-      background: rgba(255, 68, 68, 0.1);
-      border: 1px solid #ff4444;
-      color: #ff4444;
+    .status-stopped {
+      color: var(--text-gray);
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .terminal {
+      background: #000;
+      color: var(--primary);
+      font-family: 'Courier New', monospace;
+      border-radius: 10px;
+      height: 300px;
+      overflow-y: auto;
+      padding: 15px;
+      border: 1px solid var(--primary);
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+    
+    .log-time {
+      color: var(--text-gray);
+    }
+    
+    .upload-area {
+      border: 2px dashed rgba(0, 255, 136, 0.3);
+      border-radius: 15px;
+      padding: 40px;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: rgba(0, 255, 136, 0.05);
     }
   </style>
 </head>
@@ -98,7 +134,8 @@
         <span style="color: var(--primary)">🤖</span> Vision Bot Panel
       </a>
       <div class="navbar-nav ms-auto">
-        <a class="nav-link" href="/" style="color: var(--primary)">Çıkış Yap</a>
+        <span class="nav-link text-light">Hoş geldin, {{ username }}! 👋</span>
+        <a class="nav-link" href="/logout" style="color: var(--primary)">Çıkış Yap</a>
       </div>
     </div>
   </nav>
@@ -108,7 +145,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }} alert-dismissible fade show">
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
@@ -118,91 +155,55 @@
 
     <ul class="nav nav-tabs mb-4" id="panelTabs">
       <li class="nav-item">
-        <a class="nav-link active" data-bs-toggle="tab" href="#import">📥 Proje İçe Aktar</a>
+        <a class="nav-link {{ 'active' if active_tab == 'projects' }}" href="{{ url_for('panel', tab='projects') }}">📁 Projelerim</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="tab" href="#projects">📁 Projelerim</a>
+        <a class="nav-link {{ 'active' if active_tab == 'upload' }}" href="{{ url_for('panel', tab='upload') }}">📤 Dosya Yükle</a>
       </li>
     </ul>
 
     <div class="tab-content">
-      <!-- Import Tab -->
-      <div class="tab-pane fade show active" id="import">
-        <div class="row">
-          <!-- GitHub Import -->
-          <div class="col-md-6 mb-4">
-            <div class="card h-100">
-              <div class="card-header">
-                <h5 class="mb-0">🚀 GitHub'dan İçe Aktar</h5>
-              </div>
-              <div class="card-body">
-                <form action="/clone_repo" method="post">
-                  <div class="mb-3">
-                    <label class="form-label">GitHub Repository URL</label>
-                    <input type="text" name="repo_url" class="form-control" placeholder="https://github.com/kullanici/repo.git" required>
-                  </div>
-                  <div class="mb-3">
-                    <label class="form-label">Proje Adı (Opsiyonel)</label>
-                    <input type="text" name="project_name" class="form-control" placeholder="Boş bırakırsanız repo adı kullanılır">
-                  </div>
-                  <button type="submit" class="btn btn-primary w-100">
-                    📥 Repository Klonla
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          <!-- Zip Upload -->
-          <div class="col-md-6 mb-4">
-            <div class="card h-100">
-              <div class="card-header">
-                <h5 class="mb-0">📦 ZIP Dosyası Yükle</h5>
-              </div>
-              <div class="card-body">
-                <form action="/upload_zip" method="post" enctype="multipart/form-data">
-                  <div class="mb-3">
-                    <label class="form-label">ZIP Dosyası Seç</label>
-                    <input type="file" name="zip_file" class="form-control" accept=".zip" required>
-                  </div>
-                  <div class="mb-3">
-                    <label class="form-label">Proje Adı (Opsiyonel)</label>
-                    <input type="text" name="project_name" class="form-control" placeholder="Boş bırakırsanız dosya adı kullanılır">
-                  </div>
-                  <button type="submit" class="btn btn-primary w-100">
-                    ⬆️ ZIP Yükle ve Çıkar
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Projects Tab -->
-      <div class="tab-pane fade" id="projects">
+      {% if active_tab == 'projects' %}
+      <div class="tab-pane fade show active">
         {% if projects %}
           <div class="row">
             {% for project in projects %}
-            <div class="col-md-4 mb-3">
-              <div class="card project-card" onclick="location.href='/project/{{ project.name }}'">
+            <div class="col-md-6 mb-4">
+              <div class="card project-card">
                 <div class="card-body">
-                  <h5 class="card-title">
-                    {% if project.type == 'github' %}
-                      📁
-                    {% else %}
-                      📦
-                    {% endif %}
-                    {{ project.name }}
-                  </h5>
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="card-title">📁 {{ project.name }}</h5>
+                    <span class="badge {{ 'bg-success' if project.is_running else 'bg-secondary' }}">
+                      {{ '🟢 Çalışıyor' if project.is_running else '⚪ Durduruldu' }}
+                    </span>
+                  </div>
+                  
                   <p class="card-text text-muted">
                     <small>Oluşturulma: {{ project.created }}</small><br>
-                    <small>Tip: {{ project.type|upper }}</small>
+                    <small>Python Dosyaları: {{ project.file_count }}</small>
                   </p>
-                  <div class="btn-group w-100">
-                    <a href="/project/{{ project.name }}" class="btn btn-sm btn-outline-primary">Düzenle</a>
-                    <button class="btn btn-sm btn-outline-success" onclick="runProject('{{ project.name }}', event)">Çalıştır</button>
-                    <a href="/delete_project/{{ project.name }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Silmek istediğinize emin misiniz?')">Sil</a>
+                  
+                  <div class="mb-3">
+                    <strong>Dosyalar:</strong>
+                    {% for file in project.python_files %}
+                      <span class="badge bg-dark me-1">🐍 {{ file }}</span>
+                    {% endfor %}
+                  </div>
+
+                  <div class="btn-group w-100 mb-3">
+                    {% if project.is_running %}
+                      <a href="/stop_project/{{ project.name }}" class="btn btn-danger btn-sm">⏹️ Durdur</a>
+                    {% else %}
+                      <a href="/run_project/{{ project.name }}" class="btn btn-success btn-sm">🚀 Çalıştır</a>
+                    {% endif %}
+                    <button class="btn btn-info btn-sm" onclick="showLogs('{{ project.name }}')">📊 Loglar</button>
+                    <a href="/delete_project/{{ project.name }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Projeyi silmek istediğinize emin misiniz?')">🗑️ Sil</a>
+                  </div>
+
+                  <!-- Terminal Logları -->
+                  <div id="logs-{{ project.name }}" class="terminal mt-3" style="display: none;">
+                    <div class="text-center text-muted">Loglar yükleniyor...</div>
                   </div>
                 </div>
               </div>
@@ -212,38 +213,95 @@
         {% else %}
           <div class="text-center py-5">
             <h4>Henüz projeniz bulunmuyor</h4>
-            <p class="text-muted">İlk projenizi içe aktararak başlayın!</p>
+            <p class="text-muted">İlk Python dosyalarınızı yükleyerek başlayın!</p>
+            <a href="{{ url_for('panel', tab='upload') }}" class="btn btn-primary">📤 Dosya Yükle</a>
           </div>
         {% endif %}
       </div>
+      {% endif %}
+
+      <!-- Upload Tab -->
+      {% if active_tab == 'upload' %}
+      <div class="tab-pane fade show active">
+        <div class="row justify-content-center">
+          <div class="col-md-8">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0">🐍 Python Dosyası Yükle</h5>
+              </div>
+              <div class="card-body">
+                <form action="/upload_python" method="post" enctype="multipart/form-data">
+                  <div class="mb-3">
+                    <label class="form-label">Proje Adı</label>
+                    <input type="text" name="project_name" class="form-control" placeholder="Yeni proje adı" required>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label">Python Dosyaları</label>
+                    <input type="file" name="python_files" class="form-control" multiple accept=".py" required>
+                    <div class="form-text">Birden fazla .py dosyası seçebilirsiniz</div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary w-100">
+                    📤 Dosyaları Yükle ve Proje Oluştur
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    function runProject(projectName, event) {
-      event.stopPropagation();
+    async function showLogs(projectName) {
+      const logElement = document.getElementById(`logs-${projectName}`);
       
-      fetch(`/run_project/${projectName}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Proje başarıyla çalıştırıldı!\n\nÇıktı: ' + data.output);
+      if (logElement.style.display === 'none') {
+        logElement.style.display = 'block';
+        
+        // Logları getir
+        try {
+          const response = await fetch(`/get_logs/${projectName}`);
+          const data = await response.json();
+          
+          if (data.logs.length > 0) {
+            logElement.innerHTML = data.logs.map(log => 
+              `<div class="log-entry">
+                 <span class="log-time">[${log.time}]</span> ${log.message}
+               </div>`
+            ).join('');
+            logElement.scrollTop = logElement.scrollHeight;
           } else {
-            alert('Proje çalıştırılırken hata oluştu!\n\nHata: ' + data.output);
+            logElement.innerHTML = '<div class="text-center text-muted">Henüz log bulunmuyor</div>';
           }
-        })
-        .catch(error => {
-          alert('İstek hatası: ' + error);
-        });
+        } catch (error) {
+          logElement.innerHTML = '<div class="text-center text-danger">Loglar yüklenirken hata oluştu</div>';
+        }
+      } else {
+        logElement.style.display = 'none';
+      }
     }
 
-    // Dosya yükleme bildirimi
+    // Her 5 saniyede bir çalışan projelerin loglarını güncelle
+    setInterval(() => {
+      document.querySelectorAll('.terminal[style*="display: block"]').forEach(terminal => {
+        const projectName = terminal.id.replace('logs-', '');
+        showLogs(projectName);
+      });
+    }, 5000);
+
+    // Dosya seçimi bildirimi
     document.querySelector('input[type="file"]').addEventListener('change', function(e) {
-      const fileName = e.target.files[0]?.name;
-      if (fileName) {
-        const label = this.previousElementSibling;
-        label.textContent = `Seçilen: ${fileName}`;
+      const files = Array.from(e.target.files);
+      const label = this.previousElementSibling;
+      
+      if (files.length > 0) {
+        const fileNames = files.map(f => f.name).join(', ');
+        label.textContent = `Seçilen ${files.length} dosya: ${fileNames}`;
         label.style.color = 'var(--primary)';
       }
     });
