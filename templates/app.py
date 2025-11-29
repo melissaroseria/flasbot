@@ -73,7 +73,7 @@ def panel():
     
     return render_template('panel.html', projects=projects)
 
-# GitHub klonlama
+# GitHub klonlama - hata yönetimini iyileştirelim
 @app.route('/clone_repo', methods=['POST'])
 def clone_repo():
     repo_url = request.form.get('repo_url')
@@ -82,6 +82,17 @@ def clone_repo():
     if not repo_url:
         flash("GitHub URL'si gerekli!", "error")
         return redirect(url_for('panel'))
+    
+    # URL formatını kontrol et ve düzelt
+    if not repo_url.startswith('https://github.com/'):
+        if repo_url.startswith('github.com/'):
+            repo_url = 'https://' + repo_url
+        else:
+            repo_url = 'https://github.com/' + repo_url
+    
+    # .git ekle
+    if not repo_url.endswith('.git'):
+        repo_url += '.git'
     
     if not project_name:
         # URL'den proje adını çıkar
@@ -94,25 +105,50 @@ def clone_repo():
         return redirect(url_for('panel'))
     
     try:
+        # Proje dizinini oluştur
+        os.makedirs(project_path, exist_ok=True)
+        
         # GitHub reposunu klonla
-        result = subprocess.run(['git', 'clone', repo_url, project_path], 
-                              capture_output=True, text=True, timeout=300)
+        print(f"Klonlanıyor: {repo_url} -> {project_path}")
+        result = subprocess.run(
+            ['git', 'clone', repo_url, project_path], 
+            capture_output=True, 
+            text=True, 
+            timeout=300
+        )
         
         if result.returncode == 0:
             # requirements.txt varsa pip modüllerini yükle
             requirements_file = os.path.join(project_path, 'requirements.txt')
             if os.path.exists(requirements_file):
-                subprocess.run(['pip', 'install', '-r', requirements_file], 
-                             cwd=project_path, capture_output=True)
+                print("requirements.txt bulundu, modüller yükleniyor...")
+                pip_result = subprocess.run(
+                    ['pip', 'install', '-r', requirements_file], 
+                    cwd=project_path, 
+                    capture_output=True, 
+                    text=True
+                )
+                if pip_result.returncode == 0:
+                    print("Modüller başarıyla yüklendi!")
+                else:
+                    print(f"Modül yükleme hatası: {pip_result.stderr}")
             
             flash("GitHub reposu başarıyla klonlandı ve modüller yüklendi!", "success")
         else:
-            flash(f"Klonlama hatası: {result.stderr}", "error")
+            error_msg = result.stderr if result.stderr else "Bilinmeyen hata"
+            flash(f"Klonlama hatası: {error_msg}", "error")
+            # Hata durumunda dizini temizle
+            if os.path.exists(project_path):
+                shutil.rmtree(project_path)
             
     except subprocess.TimeoutExpired:
         flash("Klonlama işlemi zaman aşımına uğradı!", "error")
+        if os.path.exists(project_path):
+            shutil.rmtree(project_path)
     except Exception as e:
         flash(f"Hata oluştu: {str(e)}", "error")
+        if os.path.exists(project_path):
+            shutil.rmtree(project_path)
     
     return redirect(url_for('panel'))
 
